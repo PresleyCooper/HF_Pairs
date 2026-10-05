@@ -20,7 +20,7 @@ streamlit run app.py
 
 Your browser opens at http://localhost:8501. Pick **All seven presets → Add** to load the example pairs, then move the **Target portfolio beta** slider.
 
-The first run downloads full price history for each ticker from Yahoo Finance and caches it in `.cache/prices/` for the rest of the day. After that, changing dates and settings is instant.
+The first run downloads full price history for each ticker from Yahoo Finance and caches it in `.cache/prices/` for the rest of the day. After that, switching lookbacks and settings is instant.
 
 ## What it does
 
@@ -33,11 +33,11 @@ The first run downloads full price history for each ticker from Yahoo Finance an
 | **Stress & Sensitivity** | The same book run through the 2008 crisis, the March 2020 crash, the 2022 bear market and the Nov 2020 value rotation, plus Sharpe, CAGR and drawdown across target betas from −0.5 to +1.5. |
 | **Learn** | How pairs trading works, why funds run it, how it fails, the main backtest pitfalls, a glossary, and suggested exercises. |
 
-**Pair input.** Editable table with a long ticker, short ticker, weight and sizing method (dollar neutral, beta neutral or volatility matched). It includes preset pairs (KO/PEP, HD/LOW, V/MA, XOM/CVX, GM/F, UPS/FDX, MSFT/GOOGL), one-click **flip direction** buttons, and **save/load as JSON** (pairs plus every sidebar setting).
+**Pair input.** Editable table with a long ticker, short ticker and weight, plus one sizing method for the whole book (dollar neutral, beta neutral or volatility matched). It includes preset pairs (KO/PEP, HD/LOW, V/MA, XOM/CVX, GM/F, UPS/FDX, MSFT/GOOGL), one-click **flip direction** buttons, and **save/load as JSON** (pairs plus every sidebar setting).
 
 **Assumptions** (sidebar, each with a tooltip):
 - target beta, benchmark (SPY/QQQ/IWM/DIA) and beta window
-- dates, capital and gross leverage
+- backtest window (1, 3, 5 or 10 years ending today), capital and gross leverage
 - rebalance frequency (daily/weekly/monthly/never)
 - transaction costs, stock and ETF borrow fees, and cash rate
 - whether short positions pay dividends
