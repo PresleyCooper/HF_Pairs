@@ -94,7 +94,7 @@ def _what_went_wrong(ctx: RunContext) -> None:
     c = st.columns(4)
     c[0].metric("Depth", f"{win.depth:.1%}", border=True)
     c[1].metric("Peak → trough", f"{win.peak:%b %Y} → {win.trough:%b %Y}", f"{days} trading days",
-                delta_color="off", border=True)
+                delta_color="off", delta_arrow="off", border=True)
     c[2].metric("Recovered", f"{win.recovery:%b %Y}" if win.recovery is not None else "Not yet", border=True)
     c[3].metric(f"{cfg.benchmark} over same period", f"{bench_move:+.1%}", border=True)
 

@@ -62,7 +62,9 @@ def _stress_section(ctx: RunContext) -> None:
     bar_df = pd.DataFrame.from_dict(bars, orient="index", columns=names)
     st.plotly_chart(charts.grouped_bar(bar_df, colors, "Total return during each stress window"),
                     width="stretch", config=PLOT_CFG)
-    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch",
+                 column_config={"Note": st.column_config.TextColumn(width="large"),
+                                "Scenario": st.column_config.TextColumn(width="medium")})
 
     for o in outcomes:
         with st.expander(o.scenario.name):

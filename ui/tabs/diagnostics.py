@@ -121,11 +121,12 @@ def render(ctx: RunContext) -> None:
     c = st.columns(5)
     c[0].metric("Return correlation", _fmt(d.return_corr), border=True, help=EXPLAIN["corr"])
     c[1].metric("OLS hedge ratio", _fmt(d.hedge_ratio), f"R² {d.r_squared:.2f}", delta_color="off",
-                border=True, help=EXPLAIN["hedge"])
+                delta_arrow="off", border=True, help=EXPLAIN["hedge"])
     c[2].metric("Cointegration p-value", _fmt(d.coint_pvalue, ".3f"), coint_verdict(d.coint_pvalue),
-                delta_color="normal" if d.coint_pvalue < 0.05 else "inverse", border=True, help=EXPLAIN["coint"])
+                delta_color="green" if d.coint_pvalue < 0.05 else ("orange" if d.coint_pvalue < 0.10 else "red"),
+                delta_arrow="off", border=True, help=EXPLAIN["coint"])
     c[3].metric("Half-life (days)", _fmt(d.half_life, ".0f"), half_life_verdict(d.half_life),
-                delta_color="off", border=True, help=EXPLAIN["half_life"])
+                delta_color="off", delta_arrow="off", border=True, help=EXPLAIN["half_life"])
     z_now = d.zscore.dropna()
     c[4].metric("Z-score today", _fmt(float(z_now.iloc[-1])) if len(z_now) else "–", border=True,
                 help=EXPLAIN["zscore"])

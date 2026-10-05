@@ -70,7 +70,7 @@ def line_chart(
     if hline is not None:
         y, label = hline
         fig.add_hline(y=y, line=dict(color=REFERENCE, width=1.5, dash="dash"),
-                      annotation_text=label, annotation_position="top left",
+                      annotation_text=label, annotation_position="top right",
                       annotation_font=dict(color=TEXT_2, size=11))
     return _base_layout(fig, title, yfmt, height)
 
@@ -147,19 +147,23 @@ def bar_chart(
     ))
     fig = _base_layout(fig, title, None, height or max(220, 44 * len(v) + 80))
     fig.update_layout(hovermode="closest", bargap=0.35, showlegend=False)
+    lo, hi = min(float(v.min()), 0.0), max(float(v.max()), 0.0)
+    pad = 0.22 * (hi - lo or 1.0)
     fig.update_xaxes(tickformat=xfmt, showgrid=True, gridcolor=GRID, showspikes=False,
-                     zeroline=True, zerolinecolor=REFERENCE)
+                     zeroline=True, zerolinecolor=REFERENCE,
+                     range=[lo - (pad if lo < 0 else 0), hi + (pad if hi > 0 else 0)])
     fig.update_yaxes(showgrid=False, tickfont=dict(color=TEXT))
     return fig
 
 
-def grouped_bar(df: pd.DataFrame, colors: list[str], title: str, yfmt: str = ".0%", height: int = 380) -> go.Figure:
+def grouped_bar(df: pd.DataFrame, colors: list[str], title: str, yfmt: str = ".0%", height: int = 380,
+                textfmt: str = ".1%") -> go.Figure:
     """Vertical grouped bars: one group per row, one bar per column."""
     fig = go.Figure()
     for col, color in zip(df.columns, colors):
         fig.add_trace(go.Bar(
             x=df.index, y=df[col], name=col, marker=dict(color=color, line=dict(width=0)),
-            text=[f"{v:{yfmt}}" if pd.notna(v) else "n/a" for v in df[col]],
+            text=[f"{v:{textfmt}}" if pd.notna(v) else "n/a" for v in df[col]],
             textposition="outside", textfont=dict(size=11, color=TEXT_2), cliponaxis=False,
             hovertemplate=f"%{{x}}<br>{col}: %{{y:{yfmt}}}<extra></extra>",
         ))
