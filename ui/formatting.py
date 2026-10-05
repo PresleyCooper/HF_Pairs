@@ -26,5 +26,12 @@ def stats_table(columns: dict[str, dict[str, float]]) -> pd.DataFrame:
     return pd.DataFrame.from_dict(rows, orient="index")
 
 
+def md_money(x: float) -> str:
+    """Dollar amount safe for st.markdown (a bare $ pair would render as LaTeX)."""
+    from .charts import money
+
+    return money(x).replace("$", "\\$")
+
+
 def beta_label(b: float) -> str:
     return f"β = {b:+.2f}" if b else "β = 0 (market neutral)"

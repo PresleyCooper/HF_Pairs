@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import streamlit as st
 
-from pairs_engine.analytics import result_stats, summary_stats
+from pairs_engine.analytics import daily_report, result_stats, summary_stats
 
 from .. import charts
 from ..formatting import beta_label, fmt_value, stats_table
 from ..glossary import GLOSSARY, STAT_TIPS, tip
 from . import RunContext
+from .learn import pitfalls_box
 
 
 def render(ctx: RunContext) -> None:
@@ -35,6 +36,8 @@ def render(ctx: RunContext) -> None:
         col.metric(name, fmt_value(stats[name], kind), delta=delta,
                    delta_color="off" if name in ("Realized beta",) else "normal",
                    help=tip(key) if key else None, border=True)
+
+    pitfalls_box()
 
     # ---- Equity curves ----
     cap = cfg.initial_capital
@@ -75,3 +78,11 @@ def render(ctx: RunContext) -> None:
                 "from the market exposure you chose, not from stock picking. If most of your "
                 "return disappears at β = 0, your 'alpha' was really beta."
             )
+
+    st.download_button(
+        "Download daily results (CSV)",
+        data=daily_report(res).to_csv().encode("utf-8"),
+        file_name=f"hf_pairs_daily_{cfg.start:%Y%m%d}_{cfg.end:%Y%m%d}.csv",
+        mime="text/csv",
+        help="NAV, returns, betas, exposures, costs and net P&L by pair for every trading day.",
+    )

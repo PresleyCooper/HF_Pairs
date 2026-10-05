@@ -131,9 +131,13 @@ def bar_chart(
     xfmt: str = "$,.0f",
     label: Callable[[float], str] = money,
     height: int | None = None,
+    sort: bool = True,
 ) -> go.Figure:
-    """Horizontal bars, colored by sign (gain blue / loss red), labelled with values."""
-    v = values.sort_values()
+    """Horizontal bars, colored by sign (gain blue / loss red), labelled with values.
+
+    Unsorted bars keep the series order top to bottom.
+    """
+    v = values.sort_values() if sort else values.iloc[::-1]
     colors = [GAIN if x >= 0 else LOSS for x in v.values]
     fig = go.Figure(go.Bar(
         x=v.values, y=v.index, orientation="h", marker=dict(color=colors, line=dict(width=0)),
@@ -146,4 +150,38 @@ def bar_chart(
     fig.update_xaxes(tickformat=xfmt, showgrid=True, gridcolor=GRID, showspikes=False,
                      zeroline=True, zerolinecolor=REFERENCE)
     fig.update_yaxes(showgrid=False, tickfont=dict(color=TEXT))
+    return fig
+
+
+def grouped_bar(df: pd.DataFrame, colors: list[str], title: str, yfmt: str = ".0%", height: int = 380) -> go.Figure:
+    """Vertical grouped bars: one group per row, one bar per column."""
+    fig = go.Figure()
+    for col, color in zip(df.columns, colors):
+        fig.add_trace(go.Bar(
+            x=df.index, y=df[col], name=col, marker=dict(color=color, line=dict(width=0)),
+            text=[f"{v:{yfmt}}" if pd.notna(v) else "n/a" for v in df[col]],
+            textposition="outside", textfont=dict(size=11, color=TEXT_2), cliponaxis=False,
+            hovertemplate=f"%{{x}}<br>{col}: %{{y:{yfmt}}}<extra></extra>",
+        ))
+    fig = _base_layout(fig, title, yfmt, height)
+    fig.update_layout(barmode="group", bargap=0.3, bargroupgap=0.08, hovermode="closest")
+    fig.update_xaxes(showspikes=False, ticks="")
+    return fig
+
+
+def sweep_chart(x: pd.Index, y: pd.Series, current: float, title: str, yfmt: str, height: int = 320,
+                color: str = PORTFOLIO) -> go.Figure:
+    """A metric across target betas, with the slider's current value marked."""
+    fig = go.Figure(go.Scatter(
+        x=list(x), y=y.values, mode="lines+markers", line=dict(color=color, width=2),
+        marker=dict(size=8, color=color, line=dict(color=SURFACE, width=2)), name=y.name,
+        hovertemplate=f"Target β %{{x:+.1f}}: %{{y:{yfmt}}}<extra></extra>",
+    ))
+    fig.add_vline(x=current, line=dict(color=REFERENCE, width=1.5, dash="dash"),
+                  annotation_text=f"Your setting ({current:+.2f})", annotation_position="top",
+                  annotation_font=dict(color=TEXT_2, size=11))
+    fig = _base_layout(fig, title, yfmt, height)
+    fig.update_layout(hovermode="closest", showlegend=False)
+    fig.update_xaxes(title=dict(text="Target beta", font=dict(color=TEXT_2)), showspikes=False,
+                     tickformat="+.1f", dtick=0.25)
     return fig

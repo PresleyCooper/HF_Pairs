@@ -17,6 +17,8 @@ from pairs_engine import BacktestConfig, BacktestResult, LoadResult, PairSpec, l
 from pairs_engine.data import warmup_start
 from pairs_engine.diagnostics import PairDiagnostics, diagnose_pair
 from pairs_engine.price_cache import CachedDownloader
+from pairs_engine.scenarios import SCENARIOS, ScenarioOutcome, run_scenario
+from pairs_engine.sensitivity import beta_sweep
 
 
 @st.cache_resource
@@ -47,6 +49,21 @@ def get_result(pairs: tuple[PairSpec, ...], config: BacktestConfig) -> BacktestR
 def get_diagnostics(long: str, short: str, start: date, end: date, benchmark: str, window: int) -> PairDiagnostics:
     loaded = get_prices(tuple(sorted({long, short})), start, end, benchmark, window)
     return diagnose_pair(loaded.data, long, short, start=start, end=end, window=window)
+
+
+@st.cache_data(show_spinner=False, max_entries=64)
+def get_scenario(pairs: tuple[PairSpec, ...], config: BacktestConfig, index: int) -> ScenarioOutcome:
+    """Run the book through stress scenario ``index`` (independent of the chosen dates)."""
+    sc = SCENARIOS[index]
+    loaded = get_prices(pair_tickers(pairs), sc.start, sc.end, config.benchmark, config.beta_window)
+    return run_scenario(list(pairs), config, loaded.data, sc)
+
+
+@st.cache_data(show_spinner=False, max_entries=32)
+def get_sweep(pairs: tuple[PairSpec, ...], config: BacktestConfig):
+    """Headline stats across target betas -0.5 to 1.5 (target beta in ``config`` is ignored)."""
+    loaded = get_prices(pair_tickers(pairs), config.start, config.end, config.benchmark, config.beta_window)
+    return beta_sweep(list(pairs), config, loaded.data)
 
 
 def pair_tickers(pairs: tuple[PairSpec, ...]) -> tuple[str, ...]:
