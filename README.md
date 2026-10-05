@@ -1,12 +1,16 @@
 # HF Pairs: Educational Pairs Trading Backtester
 
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://hfpairs-presleyc.streamlit.app/)
+
+**Live app: [hfpairs-presleyc.streamlit.app](https://hfpairs-presleyc.streamlit.app/)**. Runs in the browser, nothing to install.
+
 Built for the **Alternative Investments Organization at Kennesaw State University**.
 
 Enter a list of pairs trades (for example, long KO and short PEP) and the app backtests them as one long/short equity portfolio. A **target beta slider** sets how much market exposure the book keeps, because most real hedge funds are not perfectly market neutral. Every concept has an explanation next to it, so students learn how a long/short fund builds, hedges and stress-tests a pairs book while they use the tool.
 
 ![Overview](docs/screenshots/overview.png)
 
-## Quick start
+## Run it locally
 
 ```bash
 git clone https://github.com/PresleyCooper/HF_Pairs.git
