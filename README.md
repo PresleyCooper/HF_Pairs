@@ -4,7 +4,7 @@ Built for the **Alternative Investments Organization at Kennesaw State Universit
 
 Enter a list of pairs trades (for example, long KO and short PEP) and the app backtests them as one long/short equity portfolio. A **target beta slider** sets how much market exposure the book carries. Diagnostics and explanations throughout show students how real long/short hedge funds build, hedge, and stress-test a pairs book.
 
-> 🚧 Under construction. The engine is complete and tested. The Streamlit UI is coming next.
+> 🚧 Under construction. The engine and the core UI (Overview and Performance tabs) work. Diagnostics, the Learn tab and stress tests are coming next.
 
 ## Setup
 
@@ -14,6 +14,14 @@ python -m venv .venv
 # source .venv/bin/activate     # macOS / Linux
 pip install -r requirements.txt
 ```
+
+## Run the app
+
+```bash
+streamlit run app.py
+```
+
+The first run downloads full price history for each ticker from Yahoo Finance and caches it in `.cache/prices/` for the rest of the day. After that, changing dates and settings is instant.
 
 ## Run the tests
 
@@ -35,6 +43,10 @@ The tests run on synthetic price data and never touch the network.
 | `pairs_engine/costs.py` | Transaction cost, borrow fee, cash interest |
 | `pairs_engine/backtest.py` | The daily simulation loop and beta overlay |
 | `pairs_engine/analytics.py` | Tear-sheet stats, drawdowns, P&L attribution |
+| `pairs_engine/presets.py` | Example pairs with a one-line rationale each |
+| `pairs_engine/price_cache.py` | Daily on-disk parquet cache of full price histories |
+| `app.py` | Streamlit entry point (wiring only) |
+| `ui/` | Sidebar, pair editor, chart builders, glossary text, one module per tab |
 | `tests/` | pytest suite, including a no-lookahead test |
 
 ## How the engine works (short version)
