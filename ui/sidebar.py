@@ -11,6 +11,8 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
+import pandas as pd
+
 import streamlit as st
 
 from pairs_engine import BacktestConfig, RebalanceFreq
@@ -24,14 +26,14 @@ REBALANCE_LABELS = {
     RebalanceFreq.MONTHLY: "Monthly",
     RebalanceFreq.NEVER: "Never (buy & hold)",
 }
-MIN_DATE = date(1995, 1, 1)
+# Backtest window presets: label -> years of history ending today.
+LOOKBACKS: dict[str, int] = {"1Y": 1, "3Y": 3, "5Y": 5, "10Y": 10}
 
 DEFAULTS: dict[str, Any] = {
     "target_beta": 0.0,
     "benchmark": "SPY",
     "beta_window": 60,
-    "start": date(2015, 1, 1),
-    "end": date.today(),
+    "lookback": "10Y",
     "capital": 1_000_000,
     "leverage": 2.0,
     "rebalance": RebalanceFreq.MONTHLY,
@@ -58,8 +60,9 @@ def apply_config(cfg: BacktestConfig) -> None:
     ss.target_beta = round(round(_clamp(cfg.target_beta, -0.5, 1.5) / 0.05) * 0.05, 2)
     ss.benchmark = cfg.benchmark if cfg.benchmark in BENCHMARKS else "SPY"
     ss.beta_window = int(round(_clamp(cfg.beta_window, 20, 250) / 5) * 5)
-    ss.start = max(cfg.start, MIN_DATE)
-    ss.end = min(cfg.end, date.today())
+    # Snap a saved date range to the closest lookback button.
+    years = (cfg.end - cfg.start).days / 365.25
+    ss.lookback = min(LOOKBACKS, key=lambda k: abs(LOOKBACKS[k] - years))
     ss.capital = int(cfg.initial_capital)
     ss.leverage = round(round(_clamp(cfg.gross_leverage, 0.5, 4.0) / 0.25) * 0.25, 2)
     ss.rebalance = cfg.rebalance
@@ -70,8 +73,8 @@ def apply_config(cfg: BacktestConfig) -> None:
     ss.short_divs = bool(cfg.charge_short_dividends)
 
 
-def render_sidebar() -> BacktestConfig | None:
-    """Draw the sidebar and return the resulting config (None if invalid)."""
+def render_sidebar() -> BacktestConfig:
+    """Draw the sidebar and return the resulting config."""
     _seed_defaults()
     sb = st.sidebar
     sb.markdown("### Market exposure")
@@ -83,9 +86,13 @@ def render_sidebar() -> BacktestConfig | None:
                             help=tip("beta_window"), key="beta_window")
 
     sb.markdown("### Backtest window")
-    c1, c2 = sb.columns(2)
-    start = c1.date_input("Start", min_value=MIN_DATE, max_value=date.today(), key="start")
-    end = c2.date_input("End", min_value=MIN_DATE, max_value=date.today(), key="end")
+    lookback = sb.segmented_control(
+        "Lookback", list(LOOKBACKS), key="lookback", required=True, width="stretch",
+        label_visibility="collapsed", help="How many years of history to backtest, ending today.",
+    ) or DEFAULTS["lookback"]
+    end = date.today()
+    start = (pd.Timestamp(end) - pd.DateOffset(years=LOOKBACKS[lookback])).date()
+    sb.caption(f"{start:%b %d, %Y} → {end:%b %d, %Y}")
 
     sb.markdown("### Book")
     capital = sb.number_input("Starting capital ($)", min_value=10_000, step=100_000, format="%d", key="capital")
@@ -105,9 +112,6 @@ def render_sidebar() -> BacktestConfig | None:
                                 help=tip("cash_rate"), key="cash_rate")
     short_divs = sb.toggle("Charge dividends to the short leg", help=tip("short_dividends"), key="short_divs")
 
-    if end <= start:
-        sb.error("End date must be after the start date.")
-        return None
     return BacktestConfig(
         start=start, end=end, initial_capital=float(capital), gross_leverage=float(leverage),
         rebalance=rebalance, tc_bps=float(tc_bps), borrow_rate=borrow / 100,
