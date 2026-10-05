@@ -82,3 +82,14 @@ def test_drawdown_breakdown_sorted_worst_first(result):
     # Contributions during the window reconcile to the NAV move.
     move = result.nav.loc[win.trough] - result.nav.loc[win.peak]
     assert contrib.sum() == pytest.approx(move)
+
+
+def test_daily_report_columns(result):
+    from pairs_engine.analytics import daily_report
+
+    rep = daily_report(result)
+    assert len(rep) == len(result.nav)
+    assert "AAA / BBB net P&L" in rep.columns and "NAV" in rep.columns
+    pnl_cols = [c for c in rep.columns if c.endswith("net P&L")]
+    total = rep[pnl_cols].sum().sum() + rep["Cash interest"].sum()
+    assert total == pytest.approx(result.nav.iloc[-1] - result.config.initial_capital)

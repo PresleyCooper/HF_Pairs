@@ -220,3 +220,29 @@ def drawdown_breakdown(result: BacktestResult) -> tuple[DrawdownWindow, pd.Serie
     contrib = pnl.loc[mask].sum()
     contrib["Cash interest"] = float(result.interest.loc[mask].sum())
     return win, contrib.sort_values()
+
+
+def daily_report(result: BacktestResult) -> pd.DataFrame:
+    """One row per trading day: NAV, returns, betas, exposures and P&L by pair.
+
+    This is the table behind the app's CSV download.
+    """
+    nav = result.nav
+    legs = result.slots.set_index("slot")["leg"]
+    pos = result.positions
+    pnl = result.pair_pnl().add_suffix(" net P&L")
+    df = pd.DataFrame({
+        "NAV": nav,
+        "Portfolio return": result.returns,
+        f"{result.config.benchmark} return": result.bench_returns,
+        "Ex-ante beta": result.total_beta,
+        "Pair book beta": result.book_beta,
+        "Realized rolling beta": realized_rolling_beta(result),
+        "Long exposure ($)": pos.loc[:, (legs == "long").to_numpy()].sum(axis=1),
+        "Short exposure ($)": pos.loc[:, (legs == "short").to_numpy()].sum(axis=1),
+        "Overlay exposure ($)": pos.loc[:, (legs == "overlay").to_numpy()].sum(axis=1),
+        "Trading costs": result.trading_costs.sum(axis=1),
+        "Borrow costs": result.borrow_costs.sum(axis=1),
+        "Cash interest": result.interest,
+    })
+    return pd.concat([df, pnl], axis=1).rename_axis("Date")
