@@ -14,10 +14,12 @@ import math
 import pandas as pd
 import streamlit as st
 
-from pairs_engine import PairSpec, SizingMethod
+from pairs_engine import BacktestConfig, PairSpec, SizingMethod
+from pairs_engine.portfolio_io import from_json, to_json
 from pairs_engine.presets import PRESETS, preset_by_label
 
 from .glossary import tip
+from .sidebar import apply_config
 
 COLUMNS = ["Long", "Short", "Weight", "Sizing"]
 SIZING_LABELS = {m.label: m for m in SizingMethod}
@@ -77,6 +79,44 @@ def _equal_weight() -> None:
 
 def _clear() -> None:
     set_table(pd.DataFrame(columns=COLUMNS))
+
+
+def _load_json() -> None:
+    ss = st.session_state
+    upload = ss.get("portfolio_upload")
+    if upload is None:
+        return
+    try:
+        pairs, cfg = from_json(upload.getvalue().decode("utf-8"))
+    except (ValueError, UnicodeDecodeError) as exc:
+        ss.load_message = ("error", f"Could not load portfolio: {exc}")
+        return
+    set_table(pd.DataFrame([_row(p.long, p.short, p.weight, p.sizing.label) for p in pairs], columns=COLUMNS))
+    if cfg is not None:
+        apply_config(cfg)
+    ss.load_message = ("success", f"Loaded {len(pairs)} pair(s)" + (" and their settings." if cfg else "."))
+
+
+def render_save_load(pairs: list[PairSpec], config: BacktestConfig | None) -> None:
+    """Download the current book as JSON, or upload a saved one."""
+    just_loaded = "load_message" in st.session_state
+    with st.expander("Save or load this portfolio (JSON)", icon="💾", expanded=just_loaded):
+        c1, c2 = st.columns(2)
+        c1.download_button(
+            "Download portfolio + settings",
+            data=to_json(pairs, config) if pairs else "",
+            file_name="hf_pairs_portfolio.json",
+            mime="application/json",
+            disabled=not pairs,
+            width="stretch",
+            help="Saves the pairs table and every sidebar setting, so a classmate can load "
+                 "exactly the same backtest.",
+        )
+        c2.file_uploader("Load a saved portfolio", type=["json"], key="portfolio_upload",
+                         on_change=_load_json, label_visibility="collapsed")
+        msg = st.session_state.pop("load_message", None)
+        if msg:
+            (st.success if msg[0] == "success" else st.error)(msg[1])
 
 
 def parse_pairs(df: pd.DataFrame) -> tuple[list[PairSpec], list[str]]:

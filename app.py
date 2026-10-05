@@ -10,10 +10,10 @@ from __future__ import annotations
 
 import streamlit as st
 
-from ui.pair_editor import render_pair_editor
+from ui.pair_editor import render_pair_editor, render_save_load
 from ui.sidebar import render_sidebar
 from ui.state import get_prices, get_result, pair_tickers
-from ui.tabs import RunContext, diagnostics, overview, performance
+from ui.tabs import RunContext, attribution, diagnostics, learn, overview, performance, stress
 
 st.set_page_config(
     page_title="HF Pairs | AIO Kennesaw State",
@@ -46,6 +46,7 @@ config = render_sidebar()
 with st.container(border=True):
     st.markdown("#### Portfolio of pairs")
     pairs, problems = render_pair_editor()
+    render_save_load(pairs, config)
 
 for p in problems:
     st.warning(p, icon="⚠️")
@@ -87,10 +88,16 @@ if notes:
             st.markdown(f"- {n}")
 
 ctx = RunContext(pairs=pairs, config=config, result=result, neutral=neutral)
-tab_overview, tab_perf, tab_diag = st.tabs(["Overview", "Performance", "Diagnostics"])
-with tab_overview:
+tabs = st.tabs(["Overview", "Performance", "Attribution", "Diagnostics", "Stress & Sensitivity", "Learn"])
+with tabs[0]:
     overview.render(ctx)
-with tab_perf:
+with tabs[1]:
     performance.render(ctx)
-with tab_diag:
+with tabs[2]:
+    attribution.render(ctx)
+with tabs[3]:
     diagnostics.render(ctx)
+with tabs[4]:
+    stress.render(ctx)
+with tabs[5]:
+    learn.render()
