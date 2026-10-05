@@ -21,13 +21,13 @@ from pairs_engine.presets import PRESETS, preset_by_label
 from .glossary import tip
 from .sidebar import apply_config
 
-COLUMNS = ["Long", "Short", "Weight", "Sizing"]
+COLUMNS = ["Long", "Short", "Weight"]
 SIZING_LABELS = {m.label: m for m in SizingMethod}
 ALL_PRESETS = "All seven presets"
 
 
-def _row(long: str, short: str, weight: float = 1.0, sizing: str = SizingMethod.DOLLAR_NEUTRAL.label) -> dict:
-    return {"Long": long, "Short": short, "Weight": weight, "Sizing": sizing}
+def _row(long: str, short: str, weight: float = 1.0) -> dict:
+    return {"Long": long, "Short": short, "Weight": weight}
 
 
 def _default_table() -> pd.DataFrame:
@@ -40,6 +40,7 @@ def _init_state() -> None:
         ss.pairs_df = _default_table()
         ss.pairs_current = ss.pairs_df
         ss.editor_ver = 0
+    ss.setdefault("sizing_all", SizingMethod.DOLLAR_NEUTRAL.label)
 
 
 def set_table(df: pd.DataFrame) -> None:
@@ -91,7 +92,9 @@ def _load_json() -> None:
     except (ValueError, UnicodeDecodeError) as exc:
         ss.load_message = ("error", f"Could not load portfolio: {exc}")
         return
-    set_table(pd.DataFrame([_row(p.long, p.short, p.weight, p.sizing.label) for p in pairs], columns=COLUMNS))
+    set_table(pd.DataFrame([_row(p.long, p.short, p.weight) for p in pairs], columns=COLUMNS))
+    # One sizing method applies to the whole book; take it from the file's first pair.
+    ss.sizing_all = pairs[0].sizing.label
     if cfg is not None:
         apply_config(cfg)
     ss.load_message = ("success", f"Loaded {len(pairs)} pair(s)" + (" and their settings." if cfg else "."))
@@ -119,8 +122,8 @@ def render_save_load(pairs: list[PairSpec], config: BacktestConfig | None) -> No
             (st.success if msg[0] == "success" else st.error)(msg[1])
 
 
-def parse_pairs(df: pd.DataFrame) -> tuple[list[PairSpec], list[str]]:
-    """Turn editor rows into PairSpecs. Return (pairs, problems to show the user)."""
+def parse_pairs(df: pd.DataFrame, sizing: SizingMethod) -> tuple[list[PairSpec], list[str]]:
+    """Turn editor rows into PairSpecs sized with ``sizing``. Return (pairs, problems)."""
     pairs: list[PairSpec] = []
     problems: list[str] = []
     for i, r in df.reset_index(drop=True).iterrows():
@@ -140,7 +143,6 @@ def parse_pairs(df: pd.DataFrame) -> tuple[list[PairSpec], list[str]]:
         if weight < 0:
             problems.append(f"{row}: weight cannot be negative.")
             continue
-        sizing = SIZING_LABELS.get(r["Sizing"], SizingMethod.DOLLAR_NEUTRAL)
         pairs.append(PairSpec(long, short, weight, sizing))
     if pairs and sum(p.weight for p in pairs) == 0:
         problems.append("All weights are zero.")
@@ -162,6 +164,11 @@ def render_pair_editor() -> tuple[list[PairSpec], list[str]]:
               help="Set every pair's weight to 1 so each gets the same share of gross.")
     c4.button("Clear all", on_click=_clear, width="stretch")
 
+    sizing_label = st.selectbox(
+        "Sizing method (applies to every pair)", list(SIZING_LABELS), key="sizing_all",
+        help=tip("dollar_vs_beta"),
+    )
+
     edited = st.data_editor(
         ss.pairs_df,
         key=f"pairs_editor_{ss.editor_ver}",
@@ -175,14 +182,10 @@ def render_pair_editor() -> tuple[list[PairSpec], list[str]]:
                 "Weight", min_value=0.0, step=0.5, default=1.0, format="%.2f",
                 help="Relative share of the pair book's gross exposure. Weights are rescaled to sum to 100%.",
             ),
-            "Sizing": st.column_config.SelectboxColumn(
-                "Sizing method", options=list(SIZING_LABELS), default=SizingMethod.DOLLAR_NEUTRAL.label,
-                required=True, help=tip("dollar_vs_beta"),
-            ),
         },
     )
     ss.pairs_current = edited
-    pairs, problems = parse_pairs(edited)
+    pairs, problems = parse_pairs(edited, SIZING_LABELS[sizing_label])
 
     if pairs:
         st.caption("**Flip direction** to swap the long and short legs. A quick way to see why direction matters:")
