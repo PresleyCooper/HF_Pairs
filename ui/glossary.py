@@ -26,14 +26,14 @@ GLOSSARY: dict[str, str] = {
         "benchmark's excess returns, annualized."
     ),
     "gross_net": (
-        "**Gross exposure** = long $ + short $ (how much capital is at work). **Net "
-        "exposure** = long $ − short $ (directional bet). A fund with $100 of capital, $100 "
-        "long and $100 short is 200% gross and 0% net. Gross drives risk and costs. Net "
+        "**Gross exposure** = long \\$ + short \\$ (how much capital is at work). **Net "
+        "exposure** = long \\$ − short \\$ (directional bet). A fund with \\$100 of capital, \\$100 "
+        "long and \\$100 short is 200% gross and 0% net. Gross drives risk and costs. Net "
         "drives market sensitivity, but only if both legs have similar beta."
     ),
     "gross_leverage": (
-        "Gross exposure of the pair book as a multiple of capital. 2.0x means each $1 of "
-        "capital supports $2 of positions, e.g. $1 long + $1 short. The beta overlay is "
+        "Gross exposure of the pair book as a multiple of capital. 2.0x means each \\$1 of "
+        "capital supports \\$2 of positions, e.g. \\$1 long + \\$1 short. The beta overlay is "
         "extra and not counted here."
     ),
     "dollar_vs_beta": (
