@@ -13,7 +13,7 @@ import streamlit as st
 from ui.pair_editor import render_pair_editor
 from ui.sidebar import render_sidebar
 from ui.state import get_prices, get_result, pair_tickers
-from ui.tabs import RunContext, overview, performance
+from ui.tabs import RunContext, diagnostics, overview, performance
 
 st.set_page_config(
     page_title="HF Pairs | AIO Kennesaw State",
@@ -87,8 +87,10 @@ if notes:
             st.markdown(f"- {n}")
 
 ctx = RunContext(pairs=pairs, config=config, result=result, neutral=neutral)
-tab_overview, tab_perf = st.tabs(["Overview", "Performance"])
+tab_overview, tab_perf, tab_diag = st.tabs(["Overview", "Performance", "Diagnostics"])
 with tab_overview:
     overview.render(ctx)
 with tab_perf:
     performance.render(ctx)
+with tab_diag:
+    diagnostics.render(ctx)

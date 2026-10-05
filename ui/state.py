@@ -15,6 +15,7 @@ import streamlit as st
 
 from pairs_engine import BacktestConfig, BacktestResult, LoadResult, PairSpec, load_prices, run_backtest
 from pairs_engine.data import warmup_start
+from pairs_engine.diagnostics import PairDiagnostics, diagnose_pair
 from pairs_engine.price_cache import CachedDownloader
 
 
@@ -40,6 +41,12 @@ def get_result(pairs: tuple[PairSpec, ...], config: BacktestConfig) -> BacktestR
     tickers = tuple(sorted({t for p in pairs for t in (p.long, p.short)}))
     loaded = get_prices(tickers, config.start, config.end, config.benchmark, config.beta_window)
     return run_backtest(list(pairs), config, loaded.data)
+
+
+@st.cache_data(show_spinner=False, max_entries=256)
+def get_diagnostics(long: str, short: str, start: date, end: date, benchmark: str, window: int) -> PairDiagnostics:
+    loaded = get_prices(tuple(sorted({long, short})), start, end, benchmark, window)
+    return diagnose_pair(loaded.data, long, short, start=start, end=end, window=window)
 
 
 def pair_tickers(pairs: tuple[PairSpec, ...]) -> tuple[str, ...]:

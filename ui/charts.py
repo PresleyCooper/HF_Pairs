@@ -94,6 +94,33 @@ def pair_lines(df: pd.DataFrame, title: str, yfmt: str = ".2f", height: int = 40
     return line_chart(series, title=title, yfmt=yfmt, height=height)
 
 
+def band_chart(
+    value: pd.Series,
+    mean: pd.Series,
+    std: pd.Series,
+    name: str,
+    title: str,
+    height: int = 400,
+) -> go.Figure:
+    """A series with its trailing mean and shaded ±1σ / ±2σ bands."""
+    fig = go.Figure()
+    for k, alpha in ((2, 0.08), (1, 0.14)):
+        upper, lower = mean + k * std, mean - k * std
+        fig.add_trace(go.Scatter(x=upper.index, y=upper.values, mode="lines", line=dict(width=0),
+                                 showlegend=False, hoverinfo="skip"))
+        fig.add_trace(go.Scatter(
+            x=lower.index, y=lower.values, mode="lines", line=dict(width=0), fill="tonexty",
+            fillcolor=f"rgba(42,120,214,{alpha})", name=f"±{k}σ band", hoverinfo="skip",
+        ))
+    fig.add_trace(go.Scatter(x=mean.index, y=mean.values, mode="lines", name="Trailing mean",
+                             line=dict(color=REFERENCE, width=1.5, dash="dash"),
+                             hovertemplate="%{y:.3f}<extra>Trailing mean</extra>"))
+    fig.add_trace(go.Scatter(x=value.index, y=value.values, mode="lines", name=name,
+                             line=dict(color=PORTFOLIO, width=2),
+                             hovertemplate=f"%{{y:.3f}}<extra>{name}</extra>"))
+    return _base_layout(fig, title, ".2f", height)
+
+
 def money(x: float) -> str:
     return f"-${abs(x):,.0f}" if x < 0 else f"${x:,.0f}"
 
