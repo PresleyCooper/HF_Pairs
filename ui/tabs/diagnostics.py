@@ -14,8 +14,6 @@ from .. import charts
 from ..state import get_diagnostics
 from . import RunContext
 
-PLOT_CFG = {"displaylogo": False}
-
 EXPLAIN = {
     "ratio": (
         "**Price ratio with z-score bands.** The line is ln(long price ÷ short price). If the "
@@ -103,7 +101,7 @@ def render(ctx: RunContext) -> None:
     with st.spinner("Running diagnostics…"):
         table = _summary_table(ctx, window)
     st.markdown("#### All pairs at a glance")
-    st.dataframe(table, hide_index=True, width="stretch")
+    st.table(table.set_index("Pair") if len(table) else table)
 
     names = [p.label for p in ctx.result.pairs]
     choice = st.selectbox("Pair to inspect", names, key="diag_pair")
@@ -131,41 +129,29 @@ def render(ctx: RunContext) -> None:
     c[4].metric("Z-score today", _fmt(float(z_now.iloc[-1])) if len(z_now) else "–", border=True,
                 help=EXPLAIN["zscore"])
 
-    st.plotly_chart(
-        charts.band_chart(d.log_ratio, d.ratio_mean, d.ratio_std, f"ln({pair.long} / {pair.short})",
-                          f"Price ratio {pair.long} / {pair.short} with trailing ±1σ / ±2σ bands"),
-        width="stretch", config=PLOT_CFG,
-    )
+    charts.show(charts.band_chart(d.log_ratio, d.ratio_mean, d.ratio_std, f"ln({pair.long} / {pair.short})",
+                          f"Price ratio {pair.long} / {pair.short} with trailing ±1σ / ±2σ bands"))
     with st.expander("What am I looking at?"):
         st.markdown(EXPLAIN["ratio"])
 
     left, right = st.columns(2)
     with left:
-        st.plotly_chart(
-            charts.line_chart([("Z-score", d.zscore, charts.PORTFOLIO, "solid")],
+        charts.show(charts.line_chart([("Z-score", d.zscore, charts.PORTFOLIO, "solid")],
                               title=f"Z-score (trailing {window}-day)", yfmt=".1f", height=320,
-                              hline=(0.0, "Mean")),
-            width="stretch", config=PLOT_CFG,
-        )
+                              hline=(0.0, "Mean")))
         with st.expander("What is a z-score?"):
             st.markdown(EXPLAIN["zscore"])
     with right:
-        st.plotly_chart(
-            charts.line_chart([("Correlation", d.rolling_corr, charts.PORTFOLIO, "solid")],
+        charts.show(charts.line_chart([("Correlation", d.rolling_corr, charts.PORTFOLIO, "solid")],
                               title=f"Rolling {window}-day correlation of daily returns", yfmt=".2f",
-                              height=320, hline=(0.0, "Uncorrelated")),
-            width="stretch", config=PLOT_CFG,
-        )
+                              height=320, hline=(0.0, "Uncorrelated")))
         with st.expander("Why does correlation matter?"):
             st.markdown(EXPLAIN["corr"])
 
-    st.plotly_chart(
-        charts.line_chart([("OLS spread", d.spread, charts.PORTFOLIO, "solid")],
+    charts.show(charts.line_chart([("OLS spread", d.spread, charts.PORTFOLIO, "solid")],
                           title=f"Cointegration spread: ln({pair.long}) − {d.hedge_ratio:.2f} × ln({pair.short}) "
                                 "(full-sample fit)",
-                          yfmt=".2f", height=320, hline=(0.0, "Long-run equilibrium")),
-        width="stretch", config=PLOT_CFG,
-    )
+                          yfmt=".2f", height=320, hline=(0.0, "Long-run equilibrium")))
     cols = st.columns(3)
     for col, key, title in zip(cols, ("hedge", "coint", "half_life"),
                                ("Hedge ratio & R²", "Cointegration test", "Half-life")):

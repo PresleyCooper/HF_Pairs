@@ -14,9 +14,6 @@ from ..formatting import md_money
 from ..glossary import tip
 from . import RunContext
 
-PLOT_CFG = {"displaylogo": False}
-
-
 def _money_table(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
     for c in out.columns:
@@ -33,8 +30,7 @@ def _legs_section(ctx: RunContext) -> None:
     legs = leg_attribution(res)
     left, right = st.columns([3, 2])
     with left:
-        st.plotly_chart(charts.bar_chart(legs, "Net P&L by source", sort=False),
-                        width="stretch", config=PLOT_CFG)
+        charts.show(charts.bar_chart(legs, "Net P&L by source", sort=False))
     with right:
         spread = legs["Long legs"] + legs["Short legs"]
         costs = legs["Trading costs"] + legs["Borrow costs"]
@@ -67,16 +63,14 @@ def _pairs_section(ctx: RunContext) -> None:
     winners = int((net > 0).sum())
     st.caption(f"**{winners} of {len(net)}** pairs made money after costs. "
                f"Best: **{net.idxmax()}** ({md_money(net.max())}). Worst: **{net.idxmin()}** ({md_money(net.min())}).")
-    st.plotly_chart(charts.bar_chart(net, "Net P&L by pair (after trading and borrow costs)"),
-                    width="stretch", config=PLOT_CFG)
+    charts.show(charts.bar_chart(net, "Net P&L by pair (after trading and borrow costs)"))
 
     cum = res.pair_pnl()[res.pair_names].cumsum()
-    st.plotly_chart(charts.pair_lines(cum, "Cumulative net P&L by pair", yfmt="$,.0f"),
-                    width="stretch", config=PLOT_CFG)
+    charts.show(charts.pair_lines(cum, "Cumulative net P&L by pair", yfmt="$,.0f"))
 
     table = pa.copy()
     table.loc["Total"] = table.sum()
-    st.dataframe(_money_table(table), width="stretch")
+    st.table(_money_table(table))
     st.caption(f"The **{OVERLAY}** row is the {ctx.config.benchmark} position used to hit your target beta. "
                "The rows add up exactly to the change in portfolio value.")
 
@@ -100,18 +94,15 @@ def _what_went_wrong(ctx: RunContext) -> None:
 
     fig = charts.equity_chart([("Portfolio", res.nav, charts.PORTFOLIO, "solid")],
                               "Equity curve with the worst drawdown shaded", height=340)
-    fig.add_vrect(x0=win.peak, x1=win.trough, fillcolor="rgba(227,73,72,0.12)", line_width=0,
-                  annotation_text="Worst drawdown", annotation_position="top left",
-                  annotation_font=dict(color=charts.TEXT_2, size=11))
-    st.plotly_chart(fig, width="stretch", config=PLOT_CFG)
+    fig.add_vrect(x0=win.peak, x1=win.trough, fillcolor="rgba(227,73,72,0.12)", line_width=0)
+    charts.show(fig)
 
     losers = contrib.drop("Cash interest", errors="ignore")
     worst_name, worst_val = losers.idxmin(), float(losers.min())
     total_loss = float(contrib.sum())
     left, right = st.columns([3, 2])
     with left:
-        st.plotly_chart(charts.bar_chart(contrib, "P&L during the drawdown, by pair"),
-                        width="stretch", config=PLOT_CFG)
+        charts.show(charts.bar_chart(contrib, "P&L during the drawdown, by pair"))
     with right:
         share = worst_val / total_loss if total_loss < 0 and worst_val < 0 else float("nan")
         st.error(

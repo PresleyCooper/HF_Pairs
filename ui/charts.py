@@ -7,6 +7,15 @@ chart:
 * the market-neutral comparison is orange,
 * the benchmark is a neutral gray reference,
 * individual pairs take categorical slots in a fixed order.
+
+Layout rules that keep text from overlapping:
+
+* Chart titles are drawn by Streamlit above the figure (see ``show``), never
+  inside the Plotly canvas, so a legend that wraps can't collide with them.
+* Legends sit above the plot area. Plotly grows the top margin to fit them.
+* Reference lines (target beta, zero, "your setting") are legend entries,
+  not floating annotations that can land on top of the data.
+* Bar charts pad their value axis so outside labels always have room.
 """
 
 from __future__ import annotations
@@ -15,6 +24,7 @@ from typing import Callable, Iterable
 
 import pandas as pd
 import plotly.graph_objects as go
+import streamlit as st
 
 # Validated categorical palette (light mode), in fixed slot order.
 CATEGORICAL = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"]
@@ -30,17 +40,31 @@ GRID = "#ebeae6"
 SURFACE = "#ffffff"
 
 
+PLOT_CONFIG = {"displaylogo": False}
+
+
+def show(fig: go.Figure, where=st) -> None:
+    """Render a figure with its title as Streamlit text above it.
+
+    ``where`` is any Streamlit container (``st``, a column, an expander).
+    """
+    title = (fig.layout.meta or {}).get("title") if isinstance(fig.layout.meta, dict) else None
+    if title:
+        where.markdown(f"**{title.replace('$', chr(92) + '$')}**")
+    where.plotly_chart(fig, width="stretch", config=PLOT_CONFIG)
+
+
 def _base_layout(fig: go.Figure, title: str | None, yfmt: str | None, height: int) -> go.Figure:
     fig.update_layout(
-        title=dict(text=title, x=0, xanchor="left", font=dict(size=15, color=TEXT)) if title else None,
+        meta={"title": title},
         height=height,
-        margin=dict(l=8, r=8, t=56 if title else 24, b=8),
+        margin=dict(l=8, r=8, t=8, b=8, autoexpand=True),
         paper_bgcolor=SURFACE,
         plot_bgcolor=SURFACE,
         font=dict(family="Inter, Segoe UI, Helvetica, Arial, sans-serif", size=12, color=TEXT_2),
         hovermode="x unified",
         hoverlabel=dict(bgcolor="#ffffff", bordercolor=GRID, font=dict(color=TEXT)),
-        legend=dict(orientation="h", yanchor="bottom", y=1.0, xanchor="left", x=0,
+        legend=dict(orientation="h", yanchor="bottom", y=1.05, xanchor="left", x=0,
                     font=dict(color=TEXT_2), bgcolor="rgba(0,0,0,0)"),
     )
     fig.update_xaxes(showgrid=False, linecolor=GRID, tickcolor=GRID, ticks="outside",
@@ -68,11 +92,19 @@ def line_chart(
             hovertemplate=f"%{{y:{hover_fmt}}}<extra>{name}</extra>",
         ))
     if hline is not None:
-        y, label = hline
-        fig.add_hline(y=y, line=dict(color=REFERENCE, width=1.5, dash="dash"),
-                      annotation_text=label, annotation_position="top right",
-                      annotation_font=dict(color=TEXT_2, size=11))
+        add_reference_line(fig, *hline)
     return _base_layout(fig, title, yfmt, height)
+
+
+def add_reference_line(fig: go.Figure, y: float, label: str) -> None:
+    """A dashed horizontal reference line that appears in the legend."""
+    xs = [x for tr in fig.data for x in (tr.x if tr.x is not None else [])]
+    if not xs:
+        return
+    fig.add_trace(go.Scatter(
+        x=[min(xs), max(xs)], y=[y, y], mode="lines", name=label,
+        line=dict(color=REFERENCE, width=1.5, dash="dash"), hoverinfo="skip",
+    ))
 
 
 def equity_chart(curves: list[tuple[str, pd.Series, str, str]], title: str, height: int = 420) -> go.Figure:
@@ -170,6 +202,13 @@ def grouped_bar(df: pd.DataFrame, colors: list[str], title: str, yfmt: str = ".0
     fig = _base_layout(fig, title, yfmt, height)
     fig.update_layout(barmode="group", bargap=0.3, bargroupgap=0.08, hovermode="closest")
     fig.update_xaxes(showspikes=False, ticks="")
+    # Pad the value axis so the outside labels on the tallest bars have room.
+    vals = df.to_numpy(dtype=float)
+    vals = vals[~pd.isna(vals)]
+    if vals.size:
+        lo, hi = min(vals.min(), 0.0), max(vals.max(), 0.0)
+        pad = 0.15 * (hi - lo or 1.0)
+        fig.update_yaxes(range=[lo - (pad if lo < 0 else 0), hi + (pad if hi > 0 else 0)])
     return fig
 
 
@@ -181,11 +220,14 @@ def sweep_chart(x: pd.Index, y: pd.Series, current: float, title: str, yfmt: str
         marker=dict(size=8, color=color, line=dict(color=SURFACE, width=2)), name=y.name,
         hovertemplate=f"Target β %{{x:+.1f}}: %{{y:{yfmt}}}<extra></extra>",
     ))
-    fig.add_vline(x=current, line=dict(color=REFERENCE, width=1.5, dash="dash"),
-                  annotation_text=f"Your setting ({current:+.2f})", annotation_position="top",
-                  annotation_font=dict(color=TEXT_2, size=11))
+    lo, hi = float(y.min()), float(y.max())
+    fig.add_trace(go.Scatter(
+        x=[current, current], y=[lo, hi], mode="lines", name=f"Your setting (β {current:+.2f})",
+        line=dict(color=REFERENCE, width=1.5, dash="dash"), hoverinfo="skip",
+    ))
+    fig.data[0].showlegend = False
     fig = _base_layout(fig, title, yfmt, height)
-    fig.update_layout(hovermode="closest", showlegend=False)
+    fig.update_layout(hovermode="closest")
     fig.update_xaxes(title=dict(text="Target beta", font=dict(color=TEXT_2)), showspikes=False,
                      tickformat="+.1f", dtick=0.25)
     return fig

@@ -50,8 +50,6 @@ with st.container(border=True):
 
 for p in problems:
     st.warning(p, icon="⚠️")
-if config is None:
-    st.stop()
 if not pairs:
     st.info("Add at least one pair above (try the presets) to run a backtest.")
     st.stop()
@@ -101,3 +99,6 @@ with tabs[4]:
     stress.render(ctx)
 with tabs[5]:
     learn.render()
+
+st.divider()
+learn.pitfalls_box()

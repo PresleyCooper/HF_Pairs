@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pandas as pd
 import streamlit as st
 
 from pairs_engine.analytics import drawdown, pair_returns, realized_rolling_beta, realized_rolling_corr
@@ -11,9 +10,6 @@ from .. import charts
 from ..formatting import beta_label
 from ..glossary import tip
 from . import RunContext
-
-PLOT_CFG = {"displaylogo": False}
-
 
 def render(ctx: RunContext) -> None:
     res, neu, cfg = ctx.result, ctx.neutral, ctx.config
@@ -25,22 +21,19 @@ def render(ctx: RunContext) -> None:
     if not ctx.is_neutral:
         dd.append(("Market neutral (β = 0)", drawdown(neu.nav), charts.NEUTRAL, "solid"))
     dd.append((cfg.benchmark, drawdown(bench_nav), charts.BENCH, "dot"))
-    st.plotly_chart(charts.drawdown_chart(dd), width="stretch", config=PLOT_CFG)
+    charts.show(charts.drawdown_chart(dd))
 
     # ---- Beta: target vs what the model expected vs what actually happened ----
     st.markdown("#### Did the hedge hold?", help=tip("overlay"))
     realized = realized_rolling_beta(res)
-    st.plotly_chart(
-        charts.line_chart(
+    charts.show(charts.line_chart(
             [
                 ("Ex-ante beta (model estimate after hedging)", res.total_beta, charts.NEUTRAL, "solid"),
                 (f"Realized beta (trailing {window}-day regression)", realized, charts.PORTFOLIO, "solid"),
             ],
             title=f"Portfolio beta to {cfg.benchmark}",
             yfmt=".2f", height=360, hline=(cfg.target_beta, f"Target {cfg.target_beta:+.2f}"),
-        ),
-        width="stretch", config=PLOT_CFG,
-    )
+        ))
     tracking = (realized - cfg.target_beta).abs().dropna()
     if len(tracking):
         st.caption(
@@ -54,13 +47,10 @@ def render(ctx: RunContext) -> None:
 
     # ---- Correlation ----
     corr = realized_rolling_corr(res)
-    st.plotly_chart(
-        charts.line_chart(
+    charts.show(charts.line_chart(
             [(f"Rolling {window}-day correlation to {cfg.benchmark}", corr, charts.PORTFOLIO, "solid")],
             title="Correlation to the market", yfmt=".2f", height=300, hline=(0.0, "Uncorrelated"),
-        ),
-        width="stretch", config=PLOT_CFG,
-    )
+        ))
 
     # ---- Exposures ----
     st.markdown("#### Exposure over time", help=tip("gross_net"))
@@ -70,8 +60,7 @@ def render(ctx: RunContext) -> None:
     short_ = -pos.loc[:, (legs == "short").to_numpy()].sum(axis=1) / res.nav
     overlay = pos.loc[:, (legs == "overlay").to_numpy()].sum(axis=1) / res.nav
     net = long_ - short_ + overlay
-    st.plotly_chart(
-        charts.line_chart(
+    charts.show(charts.line_chart(
             [
                 ("Long stocks", long_, charts.CATEGORICAL[0], "solid"),
                 ("Short stocks (plotted negative)", -short_, charts.CATEGORICAL[1], "solid"),
@@ -79,9 +68,7 @@ def render(ctx: RunContext) -> None:
                 ("Net (long − short + overlay)", net, charts.REFERENCE, "dot"),
             ],
             title="Exposure as % of NAV", yfmt=".0%", height=340,
-        ),
-        width="stretch", config=PLOT_CFG,
-    )
+        ))
     last = res.nav.index[-1]
     c = st.columns(4)
     c[0].metric("Gross (pairs)", f"{long_.loc[last] + short_.loc[last]:.0%}", border=True)
@@ -93,10 +80,7 @@ def render(ctx: RunContext) -> None:
     if res.pair_names:
         pr = pair_returns(res)
         curves = (1 + pr).cumprod()
-        st.plotly_chart(
-            charts.pair_lines(curves, "Each pair on its own: growth of $1 of allocated capital", yfmt="$.2f"),
-            width="stretch", config=PLOT_CFG,
-        )
+        charts.show(charts.pair_lines(curves, "Each pair on its own: growth of $1 of allocated capital", yfmt="$.2f"))
         st.caption(
             "Each curve is one pair's net P&L (after trading and borrow costs, before cash interest) "
             f"divided by the capital backing it, i.e. its gross ÷ {cfg.gross_leverage:g}x leverage. "

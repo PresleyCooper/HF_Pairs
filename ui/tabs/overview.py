@@ -10,7 +10,6 @@ from .. import charts
 from ..formatting import beta_label, fmt_value, stats_table
 from ..glossary import GLOSSARY, STAT_TIPS, tip
 from . import RunContext
-from .learn import pitfalls_box
 
 
 def render(ctx: RunContext) -> None:
@@ -37,8 +36,6 @@ def render(ctx: RunContext) -> None:
                    delta_color="off" if name in ("Realized beta",) else "normal",
                    help=tip(key) if key else None, border=True)
 
-    pitfalls_box()
-
     # ---- Equity curves ----
     cap = cfg.initial_capital
     bench_nav = cap * (1 + res.bench_returns).cumprod()
@@ -46,38 +43,33 @@ def render(ctx: RunContext) -> None:
     if not ctx.is_neutral:
         curves.append(("Market neutral (β = 0)", neu.nav, charts.NEUTRAL, "solid"))
     curves.append((f"{cfg.benchmark} (buy & hold)", bench_nav, charts.BENCH, "dot"))
-    st.plotly_chart(
-        charts.equity_chart(curves, f"Growth of ${cap:,.0f}"),
-        width="stretch", config={"displaylogo": False},
-    )
+    charts.show(charts.equity_chart(curves, f"Growth of ${cap:,.0f}"))
 
-    # ---- Stats table ----
-    left, right = st.columns([3, 2])
-    with left:
-        st.markdown("#### Summary statistics")
-        columns = {f"Your book ({beta_label(cfg.target_beta)})": stats}
-        if not ctx.is_neutral:
-            columns["Market neutral (β = 0)"] = neutral_stats
-        columns[f"{cfg.benchmark}"] = bench_stats
-        table = stats_table(columns).rename_axis("Statistic").reset_index()
-        st.dataframe(table, width="stretch", height=530, hide_index=True,
-                     column_config={"Statistic": st.column_config.TextColumn(width="medium")})
-        if ctx.is_neutral:
-            st.caption("Move the **target beta** slider to compare your book against its market-neutral version.")
-    with right:
-        st.markdown("#### What the numbers mean")
-        for stat, key in STAT_TIPS.items():
-            with st.expander(stat):
-                st.markdown(GLOSSARY[key])
-        with st.expander("Gross vs net exposure"):
-            st.markdown(GLOSSARY["gross_net"])
-        with st.expander("Why compare to a market-neutral version?"):
-            st.markdown(
-                "Both columns hold the *same pairs*. The only difference is the size of the "
-                "benchmark overlay. Any gap in return, volatility or drawdown between them comes "
-                "from the market exposure you chose, not from stock picking. If most of your "
-                "return disappears at β = 0, your 'alpha' was really beta."
-            )
+    # ---- Stats table: full width, every row and column visible without scrolling ----
+    st.markdown("#### Summary statistics")
+    columns = {f"Your book ({beta_label(cfg.target_beta)})": stats}
+    if not ctx.is_neutral:
+        columns["Market neutral (β = 0)"] = neutral_stats
+    columns[f"{cfg.benchmark}"] = bench_stats
+    st.table(stats_table(columns).rename_axis("Statistic"))
+    if ctx.is_neutral:
+        st.caption("Move the **target beta** slider to compare your book against its market-neutral version.")
+
+    # ---- Explanations, below the table in a grid ----
+    st.markdown("#### What the numbers mean")
+    explainers = [(stat, GLOSSARY[key]) for stat, key in STAT_TIPS.items()]
+    explainers.append(("Gross vs net exposure", GLOSSARY["gross_net"]))
+    explainers.append((
+        "Why compare to a market-neutral version?",
+        "Both columns hold the *same pairs*. The only difference is the size of the benchmark "
+        "overlay. Any gap in return, volatility or drawdown between them comes from the market "
+        "exposure you chose, not from stock picking. If most of your return disappears at β = 0, "
+        "your 'alpha' was really beta.",
+    ))
+    grid = st.columns(3)
+    for i, (title, body) in enumerate(explainers):
+        with grid[i % 3].expander(title):
+            st.markdown(body)
 
     st.download_button(
         "Download daily results (CSV)",

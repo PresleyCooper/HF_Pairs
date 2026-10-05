@@ -10,14 +10,10 @@ import streamlit as st
 from pairs_engine.scenarios import SCENARIOS, scenario_config, worst_pair
 
 from .. import charts
-from ..charts import money
 from ..formatting import md_money
 from ..formatting import fmt_value
 from ..state import get_scenario, get_sweep
 from . import RunContext
-
-PLOT_CFG = {"displaylogo": False}
-
 
 def _stress_section(ctx: RunContext) -> None:
     cfg = ctx.config
@@ -60,11 +56,8 @@ def _stress_section(ctx: RunContext) -> None:
         names, colors = [names[0], names[2]], [colors[0], colors[2]]
         bars = {k: [v[0], v[2]] for k, v in bars.items()}
     bar_df = pd.DataFrame.from_dict(bars, orient="index", columns=names)
-    st.plotly_chart(charts.grouped_bar(bar_df, colors, "Total return during each stress window"),
-                    width="stretch", config=PLOT_CFG)
-    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch",
-                 column_config={"Note": st.column_config.TextColumn(width="large"),
-                                "Scenario": st.column_config.TextColumn(width="medium")})
+    charts.show(charts.grouped_bar(bar_df, colors, "Total return during each stress window"))
+    st.table(pd.DataFrame(rows).set_index("Scenario"))
 
     for o in outcomes:
         with st.expander(o.scenario.name):
@@ -79,10 +72,9 @@ def _stress_section(ctx: RunContext) -> None:
                 curves.append(("Market neutral", o.neutral.nav, charts.NEUTRAL, "solid"))
             curves.append((cfg.benchmark, bench_nav, charts.BENCH, "dot"))
             left, right = st.columns([3, 2])
-            left.plotly_chart(charts.equity_chart(curves, "Equity during the window", height=320),
-                              width="stretch", config=PLOT_CFG)
+            charts.show(charts.equity_chart(curves, "Equity during the window", height=320), left)
             pnl = res.pair_pnl().sum()
-            right.plotly_chart(charts.bar_chart(pnl, "Net P&L by pair"), width="stretch", config=PLOT_CFG)
+            charts.show(charts.bar_chart(pnl, "Net P&L by pair"), right)
             name, val = worst_pair(res)
             st.markdown(f"Worst pair: **{name}** ({md_money(val)}). Realized beta during the window: "
                         f"**{o.stats['Realized beta']:.2f}** against a target of {cfg.target_beta:+.2f}.")
@@ -101,17 +93,14 @@ def _sensitivity_section(ctx: RunContext) -> None:
         # Keyed on beta 0 so dragging the slider doesn't re-run all 21 backtests.
         sweep = get_sweep(tuple(ctx.pairs), cfg.with_target_beta(0.0))
     sharpe = sweep["Sharpe ratio"].rename("Sharpe ratio")
-    st.plotly_chart(charts.sweep_chart(sweep.index, sharpe, cfg.target_beta, "Sharpe ratio vs target beta",
-                                       ".2f", height=360),
-                    width="stretch", config=PLOT_CFG)
+    charts.show(charts.sweep_chart(sweep.index, sharpe, cfg.target_beta, "Sharpe ratio vs target beta",
+                                       ".2f", height=360))
     c1, c2 = st.columns(2)
-    c1.plotly_chart(charts.sweep_chart(sweep.index, sweep["CAGR"].rename("CAGR"), cfg.target_beta,
-                                       "CAGR vs target beta", ".1%", color=charts.CATEGORICAL[2]),
-                    width="stretch", config=PLOT_CFG)
-    c2.plotly_chart(charts.sweep_chart(sweep.index, sweep["Max drawdown"].rename("Max drawdown"),
+    charts.show(charts.sweep_chart(sweep.index, sweep["CAGR"].rename("CAGR"), cfg.target_beta,
+                                       "CAGR vs target beta", ".1%", color=charts.CATEGORICAL[2]), c1)
+    charts.show(charts.sweep_chart(sweep.index, sweep["Max drawdown"].rename("Max drawdown"),
                                        cfg.target_beta, "Max drawdown vs target beta", ".0%",
-                                       color=charts.CATEGORICAL[7]),
-                    width="stretch", config=PLOT_CFG)
+                                       color=charts.CATEGORICAL[7]), c2)
     best = float(sharpe.idxmax())
     st.markdown(
         f"Over this window the highest Sharpe came at a target beta of **{best:+.1f}** "
@@ -125,7 +114,7 @@ def _sensitivity_section(ctx: RunContext) -> None:
             kind = "pct" if c in ("CAGR", "Annualized volatility", "Max drawdown") else "num"
             table[c] = table[c].map(lambda v, k=kind: fmt_value(v, k))
         table.index = [f"{b:+.1f}" for b in table.index]
-        st.dataframe(table, width="stretch")
+        st.table(table)
 
 
 def render(ctx: RunContext) -> None:
